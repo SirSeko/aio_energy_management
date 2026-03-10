@@ -28,12 +28,6 @@ def calculate_sequential_cheapest_hours(
     mtu: int = 60,
 ) -> dict:
     """Calculate sequential cheapest hours."""
-    if price_limit is not None:  # Max price is not supported on seuqantial calculations
-        _LOGGER.error(
-            "Invalid configuration: price_limit not supported by sequential cheapest hours"
-        )
-        raise InvalidInput
-
     if (
         _is_cheapest_hours_input_valid(
             number_of_slots, starting_today, first_hour, last_hour, mtu
@@ -112,6 +106,13 @@ def calculate_sequential_cheapest_hours(
     fd["extra"]["mean_price"] = mean_price
     fd["extra"]["max_price"] = max_price
     fd["extra"]["min_price"] = min_price
+
+    if price_limit is not None:
+        if inversed and mean_price < price_limit:
+            fd["list"] = []
+        elif not inversed and mean_price > price_limit:
+            fd["list"] = []
+
     return fd
 
 
