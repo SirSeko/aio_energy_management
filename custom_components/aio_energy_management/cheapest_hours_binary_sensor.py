@@ -186,9 +186,9 @@ class CheapestHoursBinarySensor(BinarySensorEntity):
                 return
 
         # No valid data found from store either, try get new
-        _LOGGER.debug(
-            "No today fetch done for %s or value is expired. Request new data from nord pool integration",
-            self._attr_unique_id,
+        _LOGGER.info(
+            "[%s] Fetching new price data from Nordpool",
+            self._attr_name,
         )
 
         # Update number of hours.. this actually needs to be stored in the data..
@@ -215,8 +215,10 @@ class CheapestHoursBinarySensor(BinarySensorEntity):
                     active_mtu,
                 ) = await self._update_from_nordpool_official(self._mtu)
             except (ServiceValidationError, ValueNotFound) as e:
-                _LOGGER.debug(
-                    "No values for tomorrow in nord pool official integration %s", e
+                _LOGGER.info(
+                    "[%s] Tomorrow's prices not available yet from Nordpool: %s",
+                    self._attr_name,
+                    e,
                 )
                 if self._is_expired():
                     self._data["list"] = []
@@ -308,20 +310,28 @@ class CheapestHoursBinarySensor(BinarySensorEntity):
             # Logging already made on math.py, just return
             return
 
+        calculated_list = cheapest.get("list")
+        extra = cheapest.get("extra") or {}
+        _LOGGER.info(
+            "[%s] Calculation result: blocks=%s, mean_price=%s, price_limit=%s",
+            self._attr_name,
+            calculated_list,
+            extra.get("mean_price"),
+            self._data.get("active_price_limit"),
+        )
+
         # Construct new data from calculated hours
         if self._is_expired():
             self._set_list(
-                cheapest.get("list"),
+                calculated_list,
                 self._create_expiration(),
-                cheapest.get("extra"),
+                extra,
             )
-        elif self._data["list"] != cheapest.get(
-            "list"
-        ):  # Not expired, but data is not the same. Set to list_next
+        elif self._data["list"] != calculated_list:  # Not expired, but data is not the same. Set to list_next
             self._set_next(
-                cheapest.get("list") or [],
+                calculated_list or [],
                 self._create_expiration(),
-                cheapest.get("extra") or {},
+                extra,
             )
 
         self._data["fetch_date"] = self._create_fetch_date()
